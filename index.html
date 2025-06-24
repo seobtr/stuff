@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2022 PHEV Resale Value Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application uses a dashboard structure. A top control panel allows users to filter the dataset by mileage and MSRP. The main content area features two key components side-by-side on larger screens: a dynamic bar chart for quick visual price comparison and a detailed, sortable HTML table for specific data lookup. This structure was chosen because the primary user task is comparison and filtering. Separating controls from content is intuitive, and providing both visual (chart) and tabular (table) data caters to different user preferences for data consumption, making the exploration of vehicle value and depreciation seamless and efficient. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: 2022 PHEV models, MSRPs, and estimated 2025 prices at three mileage levels.
+        - Goal: Compare vehicles, understand depreciation based on mileage, and filter by price.
+        - Viz/Presentation Method & Interaction:
+          1. Grouped Bar Chart (Chart.js/Canvas): To visually compare the original MSRP against the estimated 2025 price for each vehicle. A dropdown will allow the user to select the mileage tier (Low, Medium, High), which will dynamically update the 2025 price bars. This is the most effective way to visualize the price drop.
+          2. Interactive HTML Table: To display the raw data. Users can sort columns by clicking headers. The table's content will be filtered by the master controls. This provides detailed, precise information.
+          3. Filter Controls (HTML/JS): Buttons for mileage selection and a range slider for MSRP filtering. These provide intuitive control over the dataset shown in both the chart and table.
+        - Justification: This combination creates a powerful exploratory tool. The chart offers a high-level overview, while the table provides the details. The filters empower users to narrow the data to their specific interests, directly answering questions about vehicle value within their budget.
+        - Library/Method: Chart.js for visualizations, Vanilla JS for all interactions, and Tailwind CSS for styling.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 500px;
+            max-height: 60vh;
+        }
+        .control-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .table-sortable th {
+            cursor: pointer;
+        }
+        .table-sortable th:hover {
+            background-color: #f0f4f8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">2022 Used PHEV Market Explorer</h1>
+            <p class="mt-2 text-lg text-gray-600">Interactive Dashboard for 2025 Price Estimations</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Refine Your Search</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="mileage-filter" class="block text-sm font-medium text-gray-700 mb-2">Select Estimated Mileage for 2025</label>
+                    <div id="mileage-filter" class="flex flex-wrap gap-2">
+                        <button data-mileage="low" class="control-button active flex-grow px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">Low (~30k mi)</button>
+                        <button data-mileage="medium" class="control-button flex-grow px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">Medium (~45k mi)</button>
+                        <button data-mileage="high" class="control-button flex-grow px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">High (~60k mi)</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="msrp-slider" class="block text-sm font-medium text-gray-700 mb-2">Filter by 2022 MSRP: <span id="msrp-value" class="font-bold text-blue-600"></span></label>
+                    <input type="range" id="msrp-slider" min="25000" max="60000" step="1000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+        
+        <main class="space-y-8">
+            <section id="chart-section" class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-xl font-semibold mb-1 text-gray-800">MSRP vs. Estimated 2025 Resale Value</h2>
+                <p class="text-sm text-gray-500 mb-4">This chart compares the original manufacturer suggested retail price (MSRP) from 2022 with the estimated resale value in 2025. Use the controls above to change the mileage assumption and see how depreciation is affected.</p>
+                <div class="chart-container">
+                    <canvas id="phevPriceChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="table-section" class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-xl font-semibold mb-1 text-gray-800">Detailed Vehicle Data</h2>
+                <p class="text-sm text-gray-500 mb-4">The table below provides a detailed breakdown of the price data. Click on any column header to sort the table accordingly. The data shown reflects the filters selected above.</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 table-sortable">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th data-sort="model" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle Model</th>
+                                <th data-sort="msrp" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2022 MSRP</th>
+                                <th data-sort="estPrice" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Est. 2025 Price</th>
+                                <th data-sort="depreciationValue" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depreciation ($)</th>
+                                <th data-sort="depreciationPercent" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depreciation (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="phev-table-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-12 text-sm text-gray-500">
+            <p><strong>Disclaimer:</strong> All 2025 price figures are estimates for vehicles in good condition and will vary based on options, actual condition, and market fluctuations.</p>
+            <p>Dashboard created for interactive data exploration.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        const vehicleData = [
+            { model: 'Toyota RAV4 Prime SE', msrp: 40300, prices: { low: 26200, medium: 24200, high: 22200 } },
+            { model: 'Hyundai Tucson PHEV SEL', msrp: 35400, prices: { low: 21250, medium: 19500, high: 17700 } },
+            { model: 'Ford Escape PHEV SE', msrp: 35455, prices: { low: 19500, medium: 17700, high: 16000 } },
+            { model: 'Kia Sorento PHEV SX', msrp: 45190, prices: { low: 27100, medium: 24850, high: 22600 } },
+            { model: 'Hyundai Santa Fe PHEV SEL', msrp: 39500, prices: { low: 23700, medium: 21700, high: 19750 } },
+            { model: 'Chrysler Pacifica Hybrid', msrp: 48475, prices: { low: 26700, medium: 24200, high: 22000 } },
+            { model: 'Jeep Wrangler 4xe Sahara', msrp: 54740, prices: { low: 35600, medium: 32800, high: 30100 } },
+            { model: 'Jeep Grand Cherokee 4xe', msrp: 58095, prices: { low: 37750, medium: 34850, high: 32000 } },
+            { model: 'BMW 330e', msrp: 42950, prices: { low: 24700, medium: 22500, high: 20400 } },
+            { model: 'Volvo XC60 Recharge', msrp: 54250, prices: { low: 31500, medium: 28750, high: 26000 } },
+            { model: 'Lexus NX 450h+', msrp: 56725, prices: { low: 41400, medium: 38800, high: 36300 } },
+            { model: 'Kia Niro PHEV EX', msrp: 29590, prices: { low: 17750, medium: 16300, high: 14800 } },
+        ];
+
+        let priceChart;
+        let currentMileage = 'low';
+        let maxMsrp = 60000;
+        let sortState = { column: 'msrp', direction: 'asc' };
+
+        const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+
+        const updateData = () => {
+            const filteredData = vehicleData
+                .filter(v => v.msrp <= maxMsrp)
+                .map(v => {
+                    const estPrice = v.prices[currentMileage];
+                    const depreciationValue = v.msrp - estPrice;
+                    const depreciationPercent = (depreciationValue / v.msrp) * 100;
+                    return { ...v, estPrice, depreciationValue, depreciationPercent };
+                })
+                .sort((a, b) => {
+                    const valA = a[sortState.column];
+                    const valB = b[sortState.column];
+                    const direction = sortState.direction === 'asc' ? 1 : -1;
+                    if (valA > valB) return 1 * direction;
+                    if (valA < valB) return -1 * direction;
+                    return 0;
+                });
+            
+            updateChart(filteredData);
+            updateTable(filteredData);
+        };
+
+        const updateChart = (data) => {
+            const labels = data.map(v => v.model);
+            const msrpData = data.map(v => v.msrp);
+            const estimatedPriceData = data.map(v => v.estPrice);
+            
+            priceChart.data.labels = labels;
+            priceChart.data.datasets[0].data = msrpData;
+            priceChart.data.datasets[1].data = estimatedPriceData;
+            priceChart.update();
+        };
+
+        const updateTable = (data) => {
+            const tableBody = document.getElementById('phev-table-body');
+            tableBody.innerHTML = '';
+            data.forEach(v => {
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${v.model}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(v.msrp)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(v.estPrice)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(v.depreciationValue)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${v.depreciationPercent.toFixed(1)}%</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        };
+
+        const initializeChart = () => {
+            const ctx = document.getElementById('phevPriceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '2022 MSRP',
+                            data: [],
+                            backgroundColor: 'rgba(107, 114, 128, 0.6)',
+                            borderColor: 'rgba(107, 114, 128, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Est. 2025 Price',
+                            data: [],
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const mileageButtons = document.querySelectorAll('#mileage-filter button');
+            const msrpSlider = document.getElementById('msrp-slider');
+            const msrpValueSpan = document.getElementById('msrp-value');
+            const tableHeaders = document.querySelectorAll('.table-sortable th');
+
+            msrpValueSpan.textContent = formatCurrency(msrpSlider.value);
+            maxMsrp = parseInt(msrpSlider.value);
+
+            mileageButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    mileageButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    currentMileage = button.dataset.mileage;
+                    updateData();
+                });
+            });
+
+            msrpSlider.addEventListener('input', (e) => {
+                maxMsrp = parseInt(e.target.value);
+                msrpValueSpan.textContent = formatCurrency(maxMsrp);
+            });
+            
+            msrpSlider.addEventListener('change', updateData);
+            
+            tableHeaders.forEach(th => {
+                th.addEventListener('click', () => {
+                    const column = th.dataset.sort;
+                    if (sortState.column === column) {
+                        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortState.column = column;
+                        sortState.direction = 'asc';
+                    }
+                    updateData();
+                });
+            });
+
+            initializeChart();
+            updateData(); 
+            mileageButtons[0].click();
+        });
+
+    </script>
+</body>
+</html>
