@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sarah's 2022 Chevy Bolt EUV: Sell vs. Trade-In Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Calm Neutrals -->
+    <!-- Application Structure Plan: The structure is a single-purpose decision tool. It starts with user inputs for vehicle specifics (mileage, condition) to personalize the analysis. The core of the app is a side-by-side comparison of "Sell Privately" vs. "Trade-In", showing financial estimates and qualitative pros/cons for each. A summary "Financial Bottom Line" section explicitly calculates the net difference, including sales tax benefits, which is critical for a cost-benefit analysis. A dynamic recommendation offers a final conclusion. This focused, task-oriented structure guides the user directly from input to insight, making a complex decision easier to understand. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Cost-benefit analysis of selling vs. trading a 2022 Chevy Bolt EUV.
+        - Goal: Help a user decide the best financial and practical path for their vehicle.
+        - Viz/Presentation Method & Interaction:
+          1. Interactive Controls (HTML/JS): Sliders for mileage and buttons for condition allow users to customize the scenario. This makes the analysis directly relevant to their situation.
+          2. Comparison Cards (HTML/Tailwind): A two-column layout visually separates the "Sell" and "Trade-In" options. Each card contains the estimated value, pros, and cons, presenting a balanced view.
+          3. Financial Summary Table (HTML/Tailwind): A clear, simple table presents the final financial calculation, highlighting the sales tax advantage and net difference. This is the quantitative core of the analysis.
+          4. Dynamic Recommendation Text (JS): A text block updates based on the calculations to provide a clear, actionable conclusion (e.g., "Selling privately yields the most cash," or "Trading in is better value due to tax savings.").
+        - Justification: This approach avoids complex charts, focusing on clear numerical and textual presentation. The interactivity makes it a personal tool, not a static report. The structure directly supports the user's goal: making a choice.
+        - Library/Method: Vanilla JS for all calculations and DOM updates, Tailwind CSS for a clean, responsive layout.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .control-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -110px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Sarah's 2022 Chevy Bolt EUV: Sell vs. Trade-In</h1>
+            <p class="mt-2 text-lg text-gray-600">A Cost-Benefit Analysis for June 2025</p>
+            <a href="/" class="text-blue-600 hover:underline mt-1 inline-block">Sarah's Guide to 2022 Used PHEV Market Explorer</a>
+            
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">1. Tell Us About Your Car</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div>
+                    <label for="mileage-slider" class="block text-sm font-medium text-gray-700">Mileage: <span id="mileage-value" class="font-bold text-blue-600"></span></label>
+                    <input type="range" id="mileage-slider" min="20000" max="70000" step="1000" value="45000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Condition</label>
+                    <div id="condition-filter" class="flex flex-wrap gap-2 mt-2">
+                        <button data-condition="excellent" class="control-button flex-grow px-3 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">Excellent</button>
+                        <button data-condition="good" class="control-button active flex-grow px-3 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">Good</button>
+                        <button data-condition="fair" class="control-button flex-grow px-3 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-blue-100 transition">Fair</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <main class="space-y-8">
+            <div>
+                <h2 class="text-2xl font-bold text-center mb-6 text-gray-900">2. Your Personalized Analysis</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border-2 border-transparent" id="sell-card">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3">Sell Privately</h3>
+                        <p class="text-4xl font-bold text-green-600 mb-4" id="private-sale-value">$0</p>
+                        <div class="space-y-3 text-sm">
+                            <p class="font-semibold">Pros:</p>
+                            <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                <li>Highest potential cash return.</li>
+                                <li>You control the price and negotiations.</li>
+                            </ul>
+                            <p class="font-semibold pt-2">Cons:</p>
+                             <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                <li>Takes significant time and effort.</li>
+                                <li>You handle all marketing, showings, and paperwork.</li>
+                                <li>Potential safety risks with test drives.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border-2 border-transparent" id="trade-card">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3">Trade It In</h3>
+                        <p class="text-4xl font-bold text-blue-600 mb-4" id="trade-in-value">$0</p>
+                        <div class="space-y-3 text-sm">
+                            <p class="font-semibold">Pros:</p>
+                             <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                <li>Fast, easy, and convenient.</li>
+                                <li>Sales tax savings on your new car purchase.</li>
+                                <li>No need to deal with the public.</li>
+                            </ul>
+                            <p class="font-semibold pt-2">Cons:</p>
+                             <ul class="list-disc list-inside text-gray-600 space-y-1">
+                                <li>Lower value than private sale.</li>
+                                <li>Value is negotiated as part of a larger deal.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-bold text-center mb-4 text-gray-900">3. The Financial Bottom Line</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <tbody class="text-center">
+                            <tr class="border-b">
+                                <td class="py-3 px-2 text-left font-medium">Private Sale Cash</td>
+                                <td class="py-3 px-2 font-mono text-lg" id="summary-private-sale">$0</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="py-3 px-2 text-left font-medium">Trade-In Value</td>
+                                <td class="py-3 px-2 font-mono text-lg" id="summary-trade-in">$0</td>
+                            </tr>
+                            <tr class="border-b bg-blue-50">
+                                <td class="py-3 px-2 text-left font-medium">
+                                    Sales Tax Advantage (LA ~9.5%)
+                                    <div class="tooltip">
+                                        <span class="ml-1 font-bold cursor-pointer">(?)</span>
+                                        <span class="tooltiptext">In Louisiana, you only pay sales tax on the difference between your new car's price and your trade-in's value. This saves you money.</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-2 font-mono text-lg text-blue-700 font-bold" id="summary-tax-savings">$0</td>
+                            </tr>
+                            <tr class="bg-blue-100">
+                                <td class="py-3 px-2 text-left font-bold">Total Trade-In "Power"</td>
+                                <td class="py-3 px-2 font-mono text-lg font-bold" id="summary-trade-in-power">$0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                 <div id="recommendation" class="mt-6 text-center bg-gray-100 p-4 rounded-lg">
+                    <p id="recommendation-text" class="text-gray-800"></p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-12 text-sm text-gray-500">
+            <p><strong>Disclaimer:</strong> All values are estimates for a 2022 Chevy Bolt EUV Premier based on market data for June 2025 in Baton Rouge, LA. Actual offers will vary.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const baseValues = {
+                excellent: { private: 20500, trade: 17500 },
+                good: { private: 19000, trade: 16000 },
+                fair: { private: 17500, trade: 14500 },
+            };
+            const salesTaxRate = 0.095; 
+
+            const mileageSlider = document.getElementById('mileage-slider');
+            const mileageValueSpan = document.getElementById('mileage-value');
+            const conditionButtons = document.querySelectorAll('#condition-filter button');
+            
+            const privateSaleValueEl = document.getElementById('private-sale-value');
+            const tradeInValueEl = document.getElementById('trade-in-value');
+
+            const summaryPrivateSale = document.getElementById('summary-private-sale');
+            const summaryTradeIn = document.getElementById('summary-trade-in');
+            const summaryTaxSavings = document.getElementById('summary-tax-savings');
+            const summaryTradeInPower = document.getElementById('summary-trade-in-power');
+            
+            const recommendationText = document.getElementById('recommendation-text');
+            const sellCard = document.getElementById('sell-card');
+            const tradeCard = document.getElementById('trade-card');
+
+            function formatCurrency(value) {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+            }
+
+            function calculateValues() {
+                const mileage = parseInt(mileageSlider.value);
+                const condition = document.querySelector('#condition-filter .active').dataset.condition;
+
+                const mileageAdjustment = (45000 - mileage) / 1000 * 50; 
+                
+                const privateSaleBase = baseValues[condition].private;
+                const tradeInBase = baseValues[condition].trade;
+                
+                const finalPrivateSale = privateSaleBase + mileageAdjustment;
+                const finalTradeIn = tradeInBase + mileageAdjustment;
+
+                const taxSavings = finalTradeIn * salesTaxRate;
+                const tradeInPower = finalTradeIn + taxSavings;
+                
+                updateUI(finalPrivateSale, finalTradeIn, taxSavings, tradeInPower);
+            }
+
+            function updateUI(privateSale, tradeIn, taxSavings, tradeInPower) {
+                privateSaleValueEl.textContent = formatCurrency(privateSale);
+                tradeInValueEl.textContent = formatCurrency(tradeIn);
+                
+                summaryPrivateSale.textContent = formatCurrency(privateSale);
+                summaryTradeIn.textContent = formatCurrency(tradeIn);
+                summaryTaxSavings.textContent = `+ ${formatCurrency(taxSavings)}`;
+                summaryTradeInPower.textContent = formatCurrency(tradeInPower);
+
+                const netDifference = privateSale - tradeInPower;
+
+                sellCard.classList.remove('border-green-500');
+                tradeCard.classList.remove('border-green-500');
+
+                if (netDifference > 0) {
+                    recommendationText.innerHTML = `Selling privately could net you <strong class="text-green-700">${formatCurrency(netDifference)} more</strong> in total value. This is the best financial option if you're willing to put in the time.`;
+                    sellCard.classList.add('border-green-500');
+                } else if (netDifference < -500) {
+                     recommendationText.innerHTML = `Factoring in tax savings, trading in could be worth <strong class="text-green-700">${formatCurrency(Math.abs(netDifference))} more</strong>. This is a great deal for convenience and value.`;
+                     tradeCard.classList.add('border-green-500');
+                }
+                else {
+                    recommendationText.innerHTML = `The values are very close. Trading in offers maximum convenience for a similar financial outcome.`;
+                    tradeCard.classList.add('border-green-500');
+                }
+            }
+
+            mileageSlider.addEventListener('input', (e) => {
+                mileageValueSpan.textContent = `${parseInt(e.target.value).toLocaleString()} mi`;
+            });
+            mileageSlider.addEventListener('change', calculateValues);
+
+            conditionButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    conditionButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    calculateValues();
+                });
+            });
+
+            mileageValueSpan.textContent = `${parseInt(mileageSlider.value).toLocaleString()} mi`;
+            calculateValues();
+        });
+    </script>
+</body>
+</html>
